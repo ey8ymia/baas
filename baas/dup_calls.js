@@ -74,86 +74,61 @@ function parse_cloud_error(restore, stderr, backup) {
     return false;
 }
 
+function build_extra_args(field_value, type) {
+    var args = field_value.split(",");
+    var result = "";
+    $.each(args, function(i, value) {
+        if(process.platform == 'win32') {
+            var args = ["-c", "usr/bin/cygpath " + escape_quote_str(value)];
+            execFile(CYGWIN_BASH, args,
+                function(error, stdout, stderr) {
+                    toggle_error(error, stderr);
+                    var win_value = String(stdout).replace(/(\r\n|\n|\r)/gm, "");
+                    result += " --" + type + " " + escape_quote_str(win_value) + " ";
+                });
+        } else {
+            result += " --" + type + " " + escape_quote_str(value.trim()) + " ";
+        }
+    });
+    return result;
+}
+
 function run_duplicity(restore, force) {
 
     var container_name = "";
+    var cloud = "";
+    var time_arg = "";
+    var file_arg = "";
+    var file_to_restore = $("#res-file").val();
+    var exclude_arg = "";
+    var include_arg = "";
+    var type_arg = "";
+
     if(restore) {
         container_name = $("#res-backup-name").val();
-    } else {
-        container_name = $("#backup-name").val();
-    }
-
-    var cloud = "";
-    if(restore) {
         cloud = $("#res-cloud").val();
-    } else {
-        cloud = $("#cloud").val();
-    }
-
-    if(!restore) {
-        backups[cloud + "/" + container_name].last_status = "Running";
-    }
-
-    var file_arg = "";
-    if(restore) {
-        var file_to_restore = $("#res-file").val();
-        if(file_to_restore) {
-            file_arg = " --file-to-restore '" + file_to_restore + "' ";
-        }
-    }
-
-    var time_arg = "";
-    if(restore) {
         var timestamp = $("#timestamp").val();
         if(timestamp) {
             time_arg = " --time " + timestamp;
         }
-    }
-
-    var type_arg = "";
-    if(!restore) {
-        var backup_type = $("input[name=backup-type]:checked").val();
-        type_arg = " " + backup_type + " ";
-    }
-
-    var exclude_arg = "";
-    if(!restore) {
+        if(file_to_restore) {
+            file_arg = " --file-to-restore " + escape_quote_str(file_to_restore) + " ";
+        }
+    } else {
+        container_name = $("#backup-name").val();
+        cloud = $("#cloud").val();
         var exclude = $("#exclude").val();
         if(exclude) {
-            var args = exclude.split(",");
-            $.each(args, function(i, value) {
-                if(process.platform == 'win32') {
-                    exec(CYGWIN_BASH + " -c \"/usr/bin/cygpath '" + value + "' \"",
-                        function(error, stdout, stderr) {
-                            toggle_error(error, stderr);
-                            var win_value = String(stdout).replace(/(\r\n|\n|\r)/gm, "");
-                            exclude_arg += " --exclude '" + win_value + "' ";
-                        });
-                } else {
-                    exclude_arg += " --exclude '" + value + "' ";
-                }
-            });
+            exclude_arg = build_extra_args(exclude, "exclude");
         }
-    }
-
-    var include_arg = "";
-    if(!restore) {
         var include = $("#include").val();
         if(include) {
-            var args = include.split(",");
-            $.each(args, function(i, value) {
-                if(process.platform == 'win32') {
-                    exec(CYGWIN_BASH + " -c \"/usr/bin/cygpath '" + value + "' \"",
-                        function(error, stdout, stderr) {
-                            toggle_error(error, stderr);
-                            var win_value = String(stdout).replace(/(\r\n|\n|\r)/gm, "");
-                            include_arg += " --include '" + win_value + "' ";
-                        });
-                } else {
-                    include_arg += " --include '" + value + "' ";
-                }
-            });
+            include_arg = build_extra_args(include, "include");
         }
+        var backup_type = $("input[name=backup-type]:checked").val();
+        type_arg = " " + backup_type + " ";
+
+        backups[cloud + "/" + container_name].last_status = "Running";
     }
 
     var directory = "";
@@ -253,9 +228,9 @@ function run_duplicity(restore, force) {
                 directory = String(stdout).replace(/(\r\n|\n|\r)/gm, "");
                 toggle_error(error, stderr);
 
-                var dirs = "'" + directory + "' swift://" + container_name;
+                var dirs = escape_quote_str(directory) + " swift://" + container_name;
                 if(restore) {
-                    dirs = " swift://" + container_name + " '" + directory + "'";
+                    dirs = " swift://" + container_name + " " + escape_quote_str(directory);
                 }
                 var cmd = build_win_commands();
                 var dup_cmd = DUPLICITY_PATH + " " + type_arg + force_arg + exclude_device_files_arg
@@ -267,9 +242,9 @@ function run_duplicity(restore, force) {
     } else {
         set_envs();
 
-        var dirs = "'" + directory + "' swift://" + container_name;
+        var dirs = escape_quote_str(directory) + " swift://" + container_name;
         if(restore) {
-            dirs = " swift://" + container_name + " '" + directory + "'";
+            dirs = " swift://" + container_name + " " + escape_quote_str(directory);
         }
         var dup_cmd = DUPLICITY_PATH + " " + type_arg + force_arg + exclude_device_files_arg +
             dup_verbosity + log_arg + include_arg + exclude_arg + file_arg + time_arg + dirs + ";";

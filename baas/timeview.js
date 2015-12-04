@@ -25,6 +25,11 @@ function go_to_restore_single(name) {
     $("#restore-tab-link").trigger("click");
 }
 
+function escape_illegal_chars(s) {
+    if(!s) return "";
+    return s.replace(/("|'|;|{|}|\\|\.|:|\[|\]|,)/g, "\\$1");
+}
+
 function show_contents_by_date(error, stdout, stderr) {
     toggle_error(error, stderr);
     $("#time-contents").empty();
@@ -34,7 +39,7 @@ function show_contents_by_date(error, stdout, stderr) {
         .attr("id", "timeview-contents-list");
     var contents = JSON.parse(stdout);
     $.each(contents, function(i, el) {
-        var f = "open_folder('" + el.name + "')";
+        var f = "open_folder('" + escape_illegal_chars(el.name) + "')";
         var restore_f = "show_rest_icon('" + i + "')";
         var title = (el.name.length > 30) ? el.name : "";
         var el_link = $("<a></a>")
@@ -60,7 +65,7 @@ function show_contents_by_date(error, stdout, stderr) {
             .attr("id", "rest_icon_" + i)
             .attr("title", "Restore")
             .attr("class", "hide")
-            .attr("onclick", "go_to_restore_single('" + el.name + "')");
+            .attr("onclick", "go_to_restore_single('" + escape_illegal_chars(el.name) + "')");
 
         li.append(icon);
         li.append(rest_icon);
@@ -114,7 +119,7 @@ function fill_breadcrumbs(path) {
         }
         var a_crumb = $("<a>" + value + "</a>")
             .attr("href", "#")
-            .attr("onclick", "go_to_path('" + cur_path + "')");
+            .attr("onclick", "go_to_path('" + escape_illegal_chars(cur_path) + "')");
         li_crumb.append(a_crumb);
         $(".breadcrumbs").append(li_crumb);
     });
@@ -124,10 +129,10 @@ var selected_date = "";
 function get_contents_by_date(value) {
     $("#loader").show();
     if(selected_date) {
-        $("#" + selected_date.replace( /(:|\.|\[|\]|,)/g, "\\$1" )).
+        $("#" + escape_illegal_chars(selected_date)).
             removeClass("active-li");
     }
-    $("#" + value.replace( /(:|\.|\[|\]|,)/g, "\\$1" )).
+    $("#" + escape_illegal_chars(value)).
         addClass("active-li");
     var time_path = $("#time-path").val();
     if(!time_path) {
@@ -148,7 +153,7 @@ function get_contents_by_date(value) {
     var datapath = path.join(BAAS_CACHE_DIR, 'timeviews');
 
     var time_cmd = "python " + TIMEVIEW_PATH + " " + datapath + " swift://" +
-        container + " get " + value + " '" + time_path + "'"
+        container + " get " + value + " " + escape_quote_str(time_path);
     if(process.platform == 'win32') {
         var cmd = build_win_commands();
         var args = ["-c", cmd + time_cmd];
