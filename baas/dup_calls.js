@@ -162,9 +162,11 @@ function run_duplicity(restore, force) {
             directory = path.join($("#res-directory").html(), file_to_restore);
             fs.stat(directory, function (err, stats) {
                 if(err) {
-                    mkdirp.sync(directory, function(err) {
-                        toggle_error(err, err);
-                    });
+                    try {
+                        mkdirp.sync(directory);
+                    } catch(e) {
+                        toggle_error(e, e);
+                    }
                 }
             });
         } else {
