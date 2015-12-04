@@ -18,6 +18,7 @@ var path = require('path');
 var mkdirp = require("mkdirp");
 var exec = require('child_process').exec;
 var execSync = require('child_process').execSync;
+var execFile = require('child_process').execFile;
 
 var BAAS_HOME_DIR = '.baas';
 var CLOUDS_CONF_FILE = 'clouds.rc';
@@ -156,4 +157,10 @@ function load_data_from_file(filename, callback) {
             callback(data);
         });
     });
+}
+
+function escape_quote_str(str) {
+    if(!str) return "";
+    var escaped_quoted = str.replace(/'/g, "'\\''");
+    return "'" + escaped_quoted + "'";
 }
