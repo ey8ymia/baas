@@ -17,7 +17,7 @@ var fs = require('fs');
 var path = require('path');
 var mkdirp = require("mkdirp");
 var exec = require('child_process').exec;
-var execSync = require('child_process').execSync;
+var execFileSync = require('child_process').execFileSync;
 var execFile = require('child_process').execFile;
 
 var BAAS_HOME_DIR = '.baas';
@@ -65,8 +65,8 @@ var templates_data = {
 
 function get_unix_path(target) {
     if(process.platform == 'win32') {
-        var out = execSync(CYGWIN_BASH +
-            " -c \"/usr/bin/cygpath '" + exec_path + "' \"");
+        var args = ["-c", "/usr/bin/cygpath " + escape_quote_str(exec_path)];
+        var out = execFileSync(CYGWIN_BASH, args);
         var win_value = String(out).replace(/(\r\n|\n|\r)/gm, "");
         return win_value + "/" + target;
     }

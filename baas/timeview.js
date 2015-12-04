@@ -151,8 +151,8 @@ function get_contents_by_date(value) {
         container + " get " + value + " '" + time_path + "'"
     if(process.platform == 'win32') {
         var cmd = build_win_commands();
-        exec(CYGWIN_BASH + " -c '" + cmd + time_cmd + "'",
-            show_contents_by_date);
+        var args = ["-c", cmd + time_cmd];
+        execFile(CYGWIN_BASH, args, show_contents_by_date);
     } else {
         exec(time_cmd, show_contents_by_date);
     }
@@ -186,7 +186,8 @@ function load_timeview() {
     var dup_cmd = DUPLICITY_PATH + " collection-status swift://" + container;
     if(process.platform == 'win32') {
         var cmd = build_win_commands();
-        exec(CYGWIN_BASH + " -c '" + cmd + dup_cmd + "'", puts);
+        var args = ["-c", cmd + dup_cmd];
+        execFile(CYGWIN_BASH, args, puts);
     } else {
         set_envs();
         exec(dup_cmd, {maxBuffer: 1000*1024} , puts);

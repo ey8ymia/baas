@@ -247,7 +247,8 @@ function run_duplicity(restore, force) {
 
     if(process.platform == 'win32') {
         directory = directory.replace(/\\/g, "\\\\");
-        exec(CYGWIN_BASH + " -c \"/usr/bin/cygpath '" + directory + "' \"",
+        var args = ["-c", "/usr/bin/cygpath " + escape_quote_str(directory)];
+        execFile(CYGWIN_BASH, args,
             function(error, stdout, stderr) {
                 directory = String(stdout).replace(/(\r\n|\n|\r)/gm, "");
                 toggle_error(error, stderr);
@@ -260,7 +261,8 @@ function run_duplicity(restore, force) {
                 var dup_cmd = DUPLICITY_PATH + " " + type_arg + force_arg + exclude_device_files_arg
                     + include_arg + exclude_arg + file_arg + time_arg + dirs + ";";
 
-                exec(CYGWIN_BASH + " -c '" + cmd + dup_cmd + "'", dup_output);
+                var args = ["-c", cmd + dup_cmd];
+                execFile(CYGWIN_BASH, args, dup_output);
         });
     } else {
         set_envs();
@@ -292,7 +294,8 @@ function load_status() {
     var dup_cmd = DUPLICITY_PATH + " collection-status swift://" + container;
     if(process.platform == 'win32') {
         var cmd = build_win_commands();
-        exec(CYGWIN_BASH + " -c '" + cmd + dup_cmd + "'", puts);
+        var args = ["-c", cmd + dup_cmd];
+        execFile(CYGWIN_BASH, args, puts);
     } else {
         set_envs();
         exec(dup_cmd, {maxBuffer: 1000*1024} , puts);
@@ -336,7 +339,8 @@ function remove_all(time, force) {
         time + force_arg + " swift://" + container;
     if(process.platform == 'win32') {
         var cmd = build_win_commands();
-        exec(CYGWIN_BASH + " -c '" + cmd + dup_cmd + "'", puts);
+        var args = ["-c", cmd + dup_cmd];
+        execFile(CYGWIN_BASH, args, puts);
     } else {
         set_envs();
         exec(dup_cmd, {maxBuffer: 1000*1024} , puts);
