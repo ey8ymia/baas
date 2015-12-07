@@ -78,16 +78,13 @@ function build_extra_args(field_value, type) {
     var args = field_value.split(",");
     var result = "";
     $.each(args, function(i, value) {
+        value = value.trim();
+        if(!value) return true;
         if(process.platform == 'win32') {
-            var args = ["-c", "usr/bin/cygpath " + escape_quote_str(value)];
-            execFile(CYGWIN_BASH, args,
-                function(error, stdout, stderr) {
-                    toggle_error(error, stderr);
-                    var win_value = String(stdout).replace(/(\r\n|\n|\r)/gm, "");
-                    result += " --" + type + " " + escape_quote_str(win_value) + " ";
-                });
+            win_value = value.replace(/\\/g, "/");
+            result += " --" + type + " " + escape_quote_str(win_value) + " ";
         } else {
-            result += " --" + type + " " + escape_quote_str(value.trim()) + " ";
+            result += " --" + type + " " + escape_quote_str(value) + " ";
         }
     });
     return result;
