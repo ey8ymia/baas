@@ -137,12 +137,10 @@ function show_alert_box(msg, alert_type, hide) {
     if(hide) {
         $("#" + alert_type + "-alert").delay(800).fadeOut(400);
     }
-    if(alert_type == "error") {
-        $("html,body").animate({
-            scrollTop: $("#msg").offset().top},
-            "slow"
-        );
-    }
+    $("html,body").animate({
+        scrollTop: $("#msg").offset().top},
+        "slow"
+    );
 }
 
 function save_backup_set(is_template) {
