@@ -19,6 +19,7 @@ var mkdirp = require("mkdirp");
 var exec = require('child_process').exec;
 var execFileSync = require('child_process').execFileSync;
 var execFile = require('child_process').execFile;
+var kamaki = require('./static/js/kamaki.js');
 
 var BAAS_HOME_DIR = '.baas';
 var CLOUDS_CONF_FILE = 'clouds.rc';
@@ -163,4 +164,20 @@ function escape_quote_str(str) {
     if(!str) return "";
     var escaped_quoted = str.replace(/'/g, "'\\''");
     return "'" + escaped_quoted + "'";
+}
+
+var clients = { };
+/**
+ * Return a client
+ * Create or update a Client object if it's missing or is outdated
+ */
+function getClient(name, URL, token, CAPath) {
+    if (clients[name] && clients[name].equalsURL(URL))
+        clients[name].setToken(token);
+    else if (clients[name]) {
+        clients[name].setURL(URL);
+    }
+    else clients[name] = new kamaki.Client(URL, token, CAPath);
+    clients[name].setCA(CAPath);
+    return clients[name];
 }

@@ -127,13 +127,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     $('#cloud-error small').show();
                     $("#login").hide();
                 } else {
-                    $.ajax({
-                        type : 'POST',
-                        url : url + '/tokens',
-                    })
-                    .done(function(data) {
+                    var cert_path = $("#cert-path").html();
+                    var cert = cert_path;
+                    try {
+                        var astakos = getClient('astakos_notoken', url, null, cert);
+                    } catch (err) {
+                        console.log(err);
+                        return;
+                    }
+
+                    function handle_result(data) {
                         $("#login").show();
-                        var endpoints = data.access.serviceCatalog
+                        var endpoints = JSON.parse(data).access.serviceCatalog
                         $.each(endpoints, function(i, endpoint) {
                             switch(endpoint.type) {
                                 case 'object-store': try {
@@ -148,15 +153,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 break;
                             }
                         });
-                    })
-                    .fail ( function(xhr, status, msg) {
+                    }
+
+                    function handle_err(err) {
                         pithos_public = null;
-                        url_error = xhr.status + ' ' + msg;
-                        console.log(xhr.status + ' ' + xhr.responseText);
+                        url_error = err;
+                        console.log(url_error);
                         $('#cloud-error small').text(errors.cloud_inaccessible + ' [' + url_error  + ']');
                         $('#cloud-error small').show();
                         $("#login").hide();
-                    });
+                    }
+                    astakos.post('/tokens', null, null, 200, handle_result, handle_err);
                 }
             }
 
@@ -171,31 +178,34 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 } else {
                     var url = $('#cloud-url').val().replace(/^\s+|\s+$/gm,'');
                     if (pithos_public && url) {
-                        $.ajax({
-                            type: 'POST', 
-                            url: url + '/tokens',
-                            beforeSend : function(req) {
-                                req.setRequestHeader('X-Auth-Token', token);
-                            },
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            data: JSON.stringify({auth: {token: {id: token}}})
-                        })
-                        .done(function(data) {
-                            auth_error = null;
-                            $('#token-error small').hide();
-                            uuid = data.access.token.tenant.id;
-                        })
-                        .fail(function(xhr, status, msg) {
-                            auth_error = xhr.status + ' ' + msg;
-                            console.log(xhr.status + ' ' + xhr.responseText);
+                        var cert_path = $("#cert-path").html();
+                        var cert = cert_path;
+                        try {
+                            var astakos =
+                                getClient('astakos', url, token, cert);
+                        } catch (err) {
+                            handle_err(err);
+                            return;
+                        }
+
+                        function handle_err(err) {
+                            auth_error = err;
+                            console.log(auth_error);
                             $('#token-error small').text(
                                 errors.token_error + ' [' + auth_error + ']');
                             $('#token-error small').show();
-
-                        });
-
+                        }
+                        function handle_result(data) {
+                            auth_error = null;
+                            $('#token-error small').hide();
+                            uuid = JSON.parse(data).access.token.tenant.id;
+                        }
+                        var send_data = JSON.stringify({ auth: { token: { id: token } } });
+                        astakos.post(
+                            '/tokens', null, send_data, 200,
+                            handle_result,
+                            handle_err
+                        );
                     } else {
                         $('#token-error small').text(errors.token_cloudless);
                         $('#token-error small').show();
@@ -215,16 +225,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 $('#cloud-name-error small').hide();
                 $('#cloud-error small').hide();
                 $('#token-error small').hide();
+                $('#cert-path-error small').hide();
 
                 if(cloud) {
                     $("#cloud-name").val(cloud.name);
                     $("#cloud-url").val(cloud.auth_url);
                     $("#token").val(cloud.token);
+                    if(cloud.cert) {
+                        $("#cert-path-div").show();
+                        $("#cert-path").html(cloud.cert);
+                    } else {
+                        $("#cert-path-div").hide();
+                        $("#cert-path").html('');
+                    }
                 } else {
                     $("#cloud-name").val('');
                     $("#cloud-url").val('');
                     $("#token").val('');
+                    $("#cert-path").html('');
                     $("#login").hide();
+                    $("#cert-path-div").hide();
+                    activate_li("dummy");
                 }
 
                 $("#cloud_details").show();
@@ -234,6 +255,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 var cloud_name = $("#cloud-name").val().replace(/^\s+|\s+$/gm,'');
                 var url = $("#cloud-url").val().replace(/^\s+|\s+$/gm,'');
                 var token = $("#token").val().replace(/^\s+|\s+$/gm,'');
+                var cert = $("#cert-path").html().replace(/^\s+|\s+$/gm,'');
 
                 var cloud = {};
                 cloud.name = cloud_name;
@@ -241,6 +263,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 cloud.token = token;
                 cloud.pithos_public = pithos_public;
                 cloud.uuid = uuid;
+                cloud.cert = cert;
 
                 clouds[cloud_name] = cloud;
                 render_clouds("");
@@ -308,6 +331,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     });
                 });
             }
+
+             function toggle_cert_path() {
+                    if($("#use-cert").is(":checked")) {
+                        $("#cert-path-div").show();
+                    } else {
+                        $("#cert-path-div").hide();
+                    }
+                }
 
             window.setInterval(function() {
                 if($("#clouds_page").attr("id") &&
@@ -388,6 +419,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 and click on <u>API access</u>. Copy the Authentication URL and Token above.
                             </div>
                         </div>
+                        <fieldset>
+                            <legend> + Show CA Certificates settings</legend>
+                            <legend class="hide"> - Hide CA Certificates settings</legend>
+                            <div class="clearfix hide" id="cert-path-div">
+                                <div class="small-3 columns">
+                                <label id="cert-path-label" for="cert-path" class="right inline">
+                                        Path to certificate
+                                    </label>
+                                </div>
+                                <div id="cert-path" class="small-6 columns dir-field"></div>
+                                <div id="dirdialogue_label" onclick="$('#choose-cert-path').trigger('click');"
+                                    class="small-3 columns" id="dirpick">
+                                    <i class="fa fa-folder-o blue-folder">&nbsp;</i>
+                                </div>
+                            </div>
+                            <div class="clearfix">
+                                <div class="small-3 columns">&nbsp;</div>
+                                <div id="cert-path-error" class="small-6 columns">
+                                    <small class="error"></small>
+                                </div>
+                                <input type="file" id="choose-cert-path" nwfile
+                                    style="display:none;"
+                                    onchange="$('#cert-path').html($(this).val());"/>
+                            </div>
+                        </fieldset>
                         <div class="clearfix">
                             <div class="small-8 columns"></div>
                             <a id="save_button" class="button radius right small"

@@ -39,8 +39,16 @@ def get_version():
         info = json.load(f)
         return info.get('version', '')
 
+def copy_cacert():
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+    os.system("pip install certifi")
+
+    print "Copying certifi's cacert.pem"
+    import certifi
+    shutil.copy2(certifi.where(), 'baas/resources/cacert.pem')
 
 def main():
+    copy_cacert()
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
     if len(sys.argv) < 2 or sys.argv[1] not in OS_OPTIONS:
